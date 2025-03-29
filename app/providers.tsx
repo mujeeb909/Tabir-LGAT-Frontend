@@ -1,7 +1,8 @@
-import { Provider } from "react-redux"; // ✅ Correct import
+"use client";
+import { Provider } from "react-redux";
 import { store } from "../store/store";
-import { ReactNode } from "react"; // ✅ Import ReactNode for proper typing
+import { ReactNode } from "react";
 
 export default function Providers({ children }: { children: ReactNode }) {
-    return <Provider store={store}>{children}</Provider>; // ✅ No more TypeScript error
+    return <Provider store={store}>{children}</Provider>;
 }
