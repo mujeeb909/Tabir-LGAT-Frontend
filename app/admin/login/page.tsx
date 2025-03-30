@@ -7,6 +7,12 @@ import { useLoginMutation } from "../../../lib/api";
 import { useDispatch } from "react-redux";
 import { setAuth } from "../../../features/authSlice";
 
+interface ApiError {
+  data?: {
+    message?: string;
+  };
+}
+
 const LoginPage = () => {
   const dispatch = useDispatch();
   const router = useRouter();
@@ -43,7 +49,7 @@ const LoginPage = () => {
 
         {error && (
           <p className="text-red-500 text-center mb-4">
-            {(error as any)?.data?.message || "Invalid credentials"}
+            {(error as ApiError)?.data?.message || "Invalid credentials"}
           </p>
         )}
 

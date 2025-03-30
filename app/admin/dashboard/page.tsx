@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import { RootState } from "../../../store/store";
 import { useGenerateTokenMutation, useGetTokensQuery } from "../../../lib/api";
 
+
+interface PurchaseCode {
+  code: string;
+  isUsed: boolean;
+}
 const Dashboard = () => {
   const router = useRouter();
   const user = useSelector((state: RootState) => state.auth.user);
@@ -81,7 +86,7 @@ const Dashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {tokens?.purchaseCodes?.map((token: any, index: number) => (
+            {tokens?.purchaseCodes?.map((token: PurchaseCode, index: number) => (
               <tr key={index} className="text-center">
                 <td className="border border-gray-300 p-2 text-black">
                   {token.code}

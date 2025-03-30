@@ -176,7 +176,7 @@ const QuizTestPage = () => {
 
         // Use the quiz endpoint to fetch questions
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/entrytest/${localStorage.getItem('topicId')}`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/entrytest`
         );
         const data = await response.json();
 

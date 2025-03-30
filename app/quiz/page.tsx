@@ -47,9 +47,9 @@ const QuizPage = () => {
       if (response.success) {
         setIsModalOpen(false);
          localStorage.setItem('purchaseCode',purchaseCode);
-         localStorage.setItem('topicId',selectedTopic._id);
+        //  localStorage.setItem('topicId',selectedTopic._id);
 
-        router.push(`/quiz/${selectedTopic.name}`);
+        router.push("/quiz/topic");
       } else {
         setError(response.message || "Invalid Purchase Code! Try again.");
       }
@@ -60,8 +60,8 @@ const QuizPage = () => {
 
   return (
     <div className="flex flex-col bg-white p-6 items-center min-h-screen sm:p-12">
-      <h1 className="text-2xl text-black font-bold">Topics</h1>
-
+      {/* <h1 className="text-2xl text-black font-bold">Topics</h1> */}
+      <h1 className="text-2xl text-black font-bold">Lets Start Your LGAT Test</h1>
       {isLoading && (
         <div className="flex justify-center items-center mt-6">
           <motion.div
@@ -90,20 +90,19 @@ const QuizPage = () => {
       )}
 
       {!isLoading && !isError && (
-        <div className="grid grid-cols-2 gap-6 mt-6 sm:grid-cols-4">
-          {topicList.map((topic: any) => (
-            <motion.div
-              key={topic._id}
-              onClick={() => handleTopicClick(topic)}
-              whileHover={{ scale: 1.05 }}
-              className={`p-6 bg-gray-50 rounded-lg shadow-md cursor-pointer border-2 transition ${
-                selectedTopic?._id === topic._id ? "border-primary" : "hover:border-gray-300"
-              }`}
-            >
-              <h2 className="text-gray-800 text-lg font-semibold">{topic.name}</h2>
-            </motion.div>
-          ))}
-        </div>
+       <div className="flex justify-center mt-6">
+       <motion.div
+         key={topicList[0]?._id}
+         onClick={openPurchaseModal}
+         whileHover={{ scale: 1.05 }}
+         className={`p-6 bg-gray-50 rounded-lg shadow-md cursor-pointer border-2 transition ${
+           selectedTopic?._id === topicList[0]?._id ? "border-primary" : "hover:border-gray-300"
+         }`}
+       >
+         <h2 className="text-gray-800 text-lg font-semibold">Enter Purchase Code</h2>
+       </motion.div>
+     </div>
+
       )}
 
       <AnimatePresence>

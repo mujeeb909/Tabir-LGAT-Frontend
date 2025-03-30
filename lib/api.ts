@@ -1,5 +1,21 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
+interface ApiResponse<T> {
+  data: T;
+  success: boolean;
+  message?: string;
+}
+
+
+interface PurchaseCode {
+  code: string;
+  isUsed: boolean;
+}
+
+interface TokensResponse {
+  purchaseCodes: PurchaseCode[];
+}
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5500/api";
 
 export const quizApi = createApi({
@@ -18,7 +34,7 @@ export const quizApi = createApi({
   endpoints: (builder) => ({
     getTopics: builder.query({
       query: () => "entrytest/topics",
-      transformResponse: (response: any) => response.data || [],
+      transformResponse: (response: ApiResponse<TokensResponse>) => response.data || [],
     }),
     verifyPurchaseCode: builder.mutation({
       query: ({ code }) => ({
@@ -42,7 +58,7 @@ export const quizApi = createApi({
     }),
     getTokens: builder.query({
       query: () => "admin/codes",
-      transformResponse: (response: any) => response.data || [],
+      transformResponse: (response: ApiResponse<TokensResponse>) => response.data || [],
     }),
   }),
 });
