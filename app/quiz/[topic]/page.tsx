@@ -21,7 +21,9 @@ interface QuizQuestion {
   }>;
   correctAnswer: string | null;
   section: string;
+  section_id: string;
 }
+
 
 interface QuizData {
   quizId: string;
@@ -46,6 +48,53 @@ interface AnalysisData {
     [key: string]: string;
   };
 }
+
+const formatSubmissionPayload = (originalQuizData, questions, userAnswers, explanations) => {
+  // Create a deep copy of the original quiz data structure
+  const submissionPayload = JSON.parse(JSON.stringify(originalQuizData));
+
+  // Create a map to easily look up user answers by question ID
+  const answersMap = {};
+  const explanationsMap = {};
+
+  // Map the answers and explanations to question IDs
+  questions.forEach((question, index) => {
+    if (userAnswers[index] !== undefined) {
+      answersMap[question.id] = userAnswers[index];
+    }
+    if (explanations[index]) {
+      explanationsMap[question.id] = explanations[index];
+    }
+  });
+
+  // Add user responses to each question in each section
+  submissionPayload.sections.forEach(section => {
+    section.questions.forEach(question => {
+      const questionId = question.question_id;
+      const userAnswer = answersMap[questionId];
+      const userExplanation = explanationsMap[questionId];
+      const isEssay = question.question_type === 'essay';
+
+      if (userAnswer !== undefined) {
+        // User answered this question
+        question.user_response = {
+          selected_option_id: isEssay ? null : userAnswer,
+          logic_response: userExplanation || null,
+          time_taken: Math.floor(Math.random() * 60) + 15 // Random time between 15-75 seconds
+        };
+      } else {
+        // No response from user
+        question.user_response = {
+          selected_option_id: null,
+          logic_response: null,
+          time_taken: null
+        };
+      }
+    });
+  });
+
+  return submissionPayload;
+};
 
 const QuizTestPage = () => {
   const { topic } = useParams() as { topic: string };
@@ -125,9 +174,9 @@ const QuizTestPage = () => {
       try {
         setLoading(true);
 
-        // Use the random quiz endpoint we created
+        // Use the quiz endpoint to fetch questions
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/entrytest/67da8a647deead57cfc84cdc`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/entrytest/${localStorage.getItem('topicId')}`
         );
         const data = await response.json();
 
@@ -147,7 +196,7 @@ const QuizTestPage = () => {
     };
 
     fetchQuestions();
-  }, []);
+  }, [topic]);
 
   useEffect(() => {
     if (timeRemaining <= 0 || showResults || isCalculating) return;
@@ -191,97 +240,110 @@ const QuizTestPage = () => {
     }
   };
 
-  const submitResultsToServer = async (timeTaken) => {
-    try {
-      setSubmittingResults(true);
-      setIsSubmitting(true); // Add this line to set loading state
-      setSubmitError("");
 
-      // Get purchase code from local storage if available
-      const purchaseCode = localStorage.getItem("purchaseCode") || "";
+const submitResultsToServer = async (timeTaken) => {
+  try {
+    setSubmittingResults(true);
+    setIsSubmitting(true);
+    setSubmitError("");
 
-      // Group answers by section
-      const sectionMap = {};
+    // Get purchase code from local storage if available
+    const purchaseCode = localStorage.getItem("purchaseCode") || "";
 
-      questions.forEach((question, index) => {
-        // Extract section ID from the question
-        const sectionId = question.section.split(" ")[0]; // Get section code (QR, VR, AR, AW)
+    // Store the original quiz data structure from the API
+    const originalQuizData = {
+      test_id: quizData.quizId,
+      test_name: quizData.quizName,
+      description: quizData.description,
+      sections: []
+    };
 
-        if (!sectionMap[sectionId]) {
-          sectionMap[sectionId] = {
-            section_id: sectionId,
-            questions: []
-          };
-        }
+    // Group questions by section to recreate the original structure
+    const sectionMap = {};
 
-        // Determine if this is an essay question or multiple choice
-        const isEssay = question.type === 'essay';
+    // First, group questions by section
+    questions.forEach(question => {
+      const sectionId = question.section_id;
+      const sectionName = question.section;
 
-        // Get the explanation for this question, if any
-        const explanation = explanations[index] || null;
-
-        // Add user response if the question was answered
-        if (answers[index]) {
-          sectionMap[sectionId].questions.push({
-            question_id: question.id,
-            user_response: {
-              selected_option_id: isEssay ? null : answers[index],
-              logic_response: explanation, // Use explanation as logic_response
-              time_taken: Math.floor(Math.random() * 60) + 15 // Random time between 15-75 seconds
-            }
-          });
-        }
-      });
-
-      // Convert section map to array
-      const sections = Object.values(sectionMap);
-
-      // Create the full payload for submission
-      const payload = {
-        test_id: quizId,
-        sections: sections,
-        purchaseCode: purchaseCode
-      };
-
-      console.log("Submitting quiz with payload:", payload);
-
-      // Use the submit endpoint
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/entrytest/submit`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.message || "Failed to submit quiz results");
+      if (!sectionMap[sectionId]) {
+        sectionMap[sectionId] = {
+          section_id: sectionId,
+          section_name: sectionName,
+          questions: []
+        };
       }
 
-      // Set the evaluation result state
-      setEvaluationResult(data.data);
+      // Add question to the appropriate section
+      sectionMap[sectionId].questions.push({
+        question_id: question.id,
+        question_text: question.text,
+        question_type: question.type,
+        category: question.category,
+        difficulty: question.difficulty,
+        options: question.options.map(option => ({
+          option_id: option.id,
+          option_text: option.text
+        })),
+        correct_answer: question.correctAnswer,
+        user_response: {
+          selected_option_id: null,
+          logic_response: null,
+          time_taken: null
+        }
+      });
+    });
 
-      // Clear the saved state and purchase code
-      localStorage.removeItem(`quizState_${topic}`);
-      localStorage.removeItem("purchaseCode");
+    // Convert section map to array and add to the original structure
+    originalQuizData.sections = Object.values(sectionMap);
 
-      console.log("Quiz submitted successfully:", data);
-    } catch (error) {
-      console.error("Error submitting quiz results:", error);
-      setSubmitError(
-        error.message || "Failed to submit quiz results. Please try again."
-      );
-    } finally {
-      setSubmittingResults(false);
-      setIsSubmitting(false); // Add this line to clear loading state
+    // Format the submission payload with user answers - pass questions array directly
+    const submissionPayload = formatSubmissionPayload(originalQuizData, questions, answers, explanations);
+
+    // Add purchase code if available
+    if (purchaseCode) {
+      submissionPayload.purchaseCode = purchaseCode;
     }
-  };
 
+    console.log("Submitting quiz with payload:", submissionPayload);
+
+    // Use the submit endpoint
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/entrytest/submit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(submissionPayload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.message || "Failed to submit quiz results");
+    }
+
+    // Set the evaluation result state
+    setEvaluationResult(data.data);
+
+    // Clear the saved state and purchase code
+    localStorage.removeItem(`quizState_${topic}`);
+    localStorage.removeItem("purchaseCode");
+    localStorage.removeItem("topicId");
+
+    console.log("Quiz submitted successfully:", data);
+  } catch (error) {
+    console.error("Error submitting quiz results:", error);
+    setSubmitError(
+      error.message || "Failed to submit quiz results. Please try again."
+    );
+  } finally {
+    setSubmittingResults(false);
+    setIsSubmitting(false);
+  }
+};
   const handleSubmit = () => {
     setIsCalculating(true);
 

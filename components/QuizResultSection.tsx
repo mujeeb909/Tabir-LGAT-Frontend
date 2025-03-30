@@ -17,6 +17,23 @@ interface AnalysisData {
   };
 }
 
+interface DetailedQuestionResult {
+  section_id: string;
+  question_id: string;
+  question_text: string;
+  question_type: string;
+  options: Array<{
+    option_id: string;
+    option_text: string;
+  }>;
+  correct_answer: string;
+  user_answer: string;
+  user_selected_text: string;
+  correct_option_text: string;
+  is_correct: boolean;
+  time_taken: number;
+}
+
 interface EvaluationResult {
   test_id: string;
   total_questions: number;
@@ -25,6 +42,7 @@ interface EvaluationResult {
   section_results: {
     [key: string]: SectionResult;
   };
+  detailed_results?: DetailedQuestionResult[];
   analysis?: AnalysisData;
   purchaseCodeStatus?: {
     isValid: boolean;
@@ -37,7 +55,7 @@ interface QuizResultSectionProps {
   evaluationResult: EvaluationResult;
   timeTaken: number;
   submitError: string;
-  isSubmitting: boolean; // Add this prop
+  isSubmitting: boolean;
 }
 
 const formatTime = (seconds: number) => {
@@ -65,7 +83,7 @@ const QuizResultSection: React.FC<QuizResultSectionProps> = ({
   submitError,
   isSubmitting,
 }) => {
-  const [activeTab, setActiveTab] = useState("summary"); // "summary", "sections", "analysis"
+  const [activeTab, setActiveTab] = useState("summary");
 
   const sectionNames = {
     QR: "Quantitative Reasoning",
@@ -77,26 +95,46 @@ const QuizResultSection: React.FC<QuizResultSectionProps> = ({
   // Handle case where section results might not be available yet
   const sectionResults = evaluationResult.section_results || {};
 
+  // Get detailed results if available
+  const detailedResults = evaluationResult.detailed_results || [];
+
+  // Group detailed results by section
+  const resultsBySection = detailedResults.reduce((acc, result) => {
+    if (!acc[result.section_id]) {
+      acc[result.section_id] = [];
+    }
+    acc[result.section_id].push(result);
+    return acc;
+  }, {});
+
   // Calculate unanswered questions
   const unanswered = evaluationResult.total_questions -
     Object.values(sectionResults).reduce((sum, section) => sum + section.attempted, 0);
 
   // Check if analysis data is available
   const hasAnalysis = !!evaluationResult.analysis;
+  const hasDetailedResults = detailedResults.length > 0;
+
+  // Determine current focused section in review tab
+  const [selectedSection, setSelectedSection] = useState(
+    Object.keys(resultsBySection)[0] || ""
+  );
+
+  if (isSubmitting) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="text-center"
+      >
+        <LoadingSpinner />
+      </motion.div>
+    );
+  }
 
   return (
-    <>
-{
-isSubmitting ? (
-  <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5 }}
-      className="text-center"
-    ><LoadingSpinner /></motion.div>
-
-      ) : (
-<motion.div
+    <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
@@ -263,119 +301,218 @@ isSubmitting ? (
         </div>
       </motion.div>
 
-      {/* Show loading spinner when submitting */}
-      {isSubmitting ? (
-        <LoadingSpinner />
-      ) : (
-        /* Tabs for Results, Section Performance, and Analysis Report */
-        (Object.keys(sectionResults).length > 0 || hasAnalysis) && (
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="mb-8"
-          >
-            <div className="flex border-b border-gray-200 mb-6">
+      {(Object.keys(sectionResults).length > 0 || hasAnalysis || hasDetailedResults) && (
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          className="mb-8"
+        >
+          <div className="flex flex-wrap border-b border-gray-200 mb-6">
+            <button
+              onClick={() => setActiveTab("summary")}
+              className={`px-4 py-2 font-medium ${
+                activeTab === "summary"
+                  ? "text-gray-800 border-b-2 border-gray-800"
+                  : "text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              Results Summary
+            </button>
+            {Object.keys(sectionResults).length > 0 && (
               <button
-                onClick={() => setActiveTab("summary")}
+                onClick={() => setActiveTab("sections")}
                 className={`px-4 py-2 font-medium ${
-                  activeTab === "summary"
-                    ? "text-gray-800 border-b-2"
+                  activeTab === "sections"
+                    ? "text-gray-800 border-b-2 border-gray-800"
                     : "text-gray-500 hover:text-gray-800"
                 }`}
               >
-                Results Summary
+                Section Performance
               </button>
-              {Object.keys(sectionResults).length > 0 && (
-                <button
-                  onClick={() => setActiveTab("sections")}
-                  className={`px-4 py-2 font-medium ${
-                    activeTab === "sections"
-                      ? "text-gray-800 border-b-2"
-                      : "text-gray-500 hover:text-gray-800"
-                  }`}
-                >
-                  Section Performance
-                </button>
-              )}
-              {hasAnalysis && (
-                <button
-                  onClick={() => setActiveTab("analysis")}
-                  className={`px-4 py-2 font-medium ${
-                    activeTab === "analysis"
-                      ? "text-gray-800 border-b-2"
-                      : "text-gray-500 hover:text-gray-800"
-                  }`}
-                >
-                  Detailed Analysis
-                </button>
-              )}
+            )}
+            {hasDetailedResults && (
+              <button
+                onClick={() => setActiveTab("review")}
+                className={`px-4 py-2 font-medium ${
+                  activeTab === "review"
+                    ? "text-gray-800 border-b-2 border-gray-800"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                Question Review
+              </button>
+            )}
+            {hasAnalysis && (
+              <button
+                onClick={() => setActiveTab("analysis")}
+                className={`px-4 py-2 font-medium ${
+                  activeTab === "analysis"
+                    ? "text-gray-800 border-b-2 border-gray-800"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                Detailed Analysis
+              </button>
+            )}
+          </div>
+
+          {activeTab === "summary" && (
+            <div className="text-left">
+              <p className="mb-4 text-gray-700">
+                You answered {evaluationResult.correct_answers} out of {evaluationResult.total_questions} questions correctly,
+                achieving an overall score of {evaluationResult.total_score}%.
+              </p>
+              <p className="text-gray-700">
+                {evaluationResult.total_score >= 70
+                  ? "Great job! Your performance demonstrates a strong understanding of the concepts tested."
+                  : evaluationResult.total_score >= 50
+                  ? "Good effort! You've shown a reasonable grasp of the material, but there's room for improvement."
+                  : "Keep practicing! This test identified areas where you can focus your study efforts to improve."}
+              </p>
             </div>
+          )}
 
-            {activeTab === "summary" && (
-              <div className="text-left">
-                <p className="mb-4 text-gray-700">
-                  You answered {evaluationResult.correct_answers} out of {evaluationResult.total_questions} questions correctly,
-                  achieving an overall score of {evaluationResult.total_score}%.
-                </p>
-                <p className="text-gray-700">
-                  {evaluationResult.total_score >= 70
-                    ? "Great job! Your performance demonstrates a strong understanding of the concepts tested."
-                    : evaluationResult.total_score >= 50
-                    ? "Good effort! You've shown a reasonable grasp of the material, but there's room for improvement."
-                    : "Keep practicing! This test identified areas where you can focus your study efforts to improve."}
-                </p>
-              </div>
-            )}
-
-            {activeTab === "sections" && (
-              <div className="grid gap-4">
-                {Object.entries(sectionResults).map(([sectionId, result]) => (
-                  <div key={sectionId} className="bg-gray-100 p-4 rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="font-medium text-gray-800">{sectionNames[sectionId] || sectionId}</h4>
-                      <span className="font-bold text-lg">{result.score}%</span>
-                    </div>
-                    <div className="bg-gray-200 h-2 rounded-full w-full mb-2">
-                      <div
-                        className={`h-full rounded-full ${
-                          result.score >= 70 ? "bg-green-500" :
-                          result.score >= 50 ? "bg-yellow-500" : "bg-red-500"
-                        }`}
-                        style={{ width: `${result.score}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex text-sm justify-between text-gray-600">
-                      <span>{result.correct}/{result.total_questions} correct</span>
-                      <span>{result.attempted}/{result.total_questions} attempted</span>
-                    </div>
+          {activeTab === "sections" && (
+            <div className="grid gap-4">
+              {Object.entries(sectionResults).map(([sectionId, result]) => (
+                <div key={sectionId} className="bg-gray-100 p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-medium text-gray-800">{sectionNames[sectionId] || sectionId}</h4>
+                    <span className="font-bold text-lg">{result.score}%</span>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {activeTab === "analysis" && evaluationResult.analysis && (
-              <div className="text-left">
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2 text-gray-800">Overall Analysis</h3>
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <p className="text-gray-700 whitespace-pre-line">{evaluationResult.analysis.summary_report}</p>
+                  <div className="bg-gray-200 h-2 rounded-full w-full mb-2">
+                    <div
+                      className={`h-full rounded-full ${
+                        result.score >= 70 ? "bg-green-500" :
+                        result.score >= 50 ? "bg-yellow-500" : "bg-red-500"
+                      }`}
+                      style={{ width: `${result.score}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex text-sm justify-between text-gray-600">
+                    <span>{result.correct}/{result.total_questions} correct</span>
+                    <span>{result.attempted}/{result.total_questions} attempted</span>
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
 
-                <h3 className="text-lg font-semibold mb-2 text-gray-800">Section-by-Section Analysis</h3>
-                <div className="space-y-4">
-                  {Object.entries(evaluationResult.analysis.section_analyses).map(([sectionId, analysis]) => (
-                    <div key={sectionId} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <h4 className="font-medium mb-2 text-gray-700">{sectionNames[sectionId] || sectionId}</h4>
-                      <p className="text-gray-700 whitespace-pre-line">{analysis}</p>
+          {activeTab === "review" && (
+            <div className="text-left">
+              {/* Section tabs for review */}
+              {Object.keys(resultsBySection).length > 1 && (
+                <div className="flex mb-4 overflow-x-auto pb-2">
+                  {Object.keys(resultsBySection).map((sectionId) => (
+                    <button
+                      key={sectionId}
+                      onClick={() => setSelectedSection(sectionId)}
+                      className={`px-3 py-1 mr-2 text-sm font-medium rounded-full ${
+                        selectedSection === sectionId
+                          ? "bg-gray-200 text-gray-800"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {sectionNames[sectionId] || sectionId}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Questions for the selected section */}
+              {selectedSection && resultsBySection[selectedSection] && (
+                <div className="space-y-6">
+                  {resultsBySection[selectedSection].map((result) => (
+                    <div
+                      key={result.question_id}
+                      className={`p-4 rounded-lg border ${
+                        result.is_correct ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
+                      }`}
+                    >
+                      <div className="flex justify-between mb-3">
+                        <div className={`px-2 py-1 rounded-md text-xs font-medium ${
+                          result.is_correct ? "bg-green-200 text-green-800" : "bg-red-200 text-red-800"
+                        }`}>
+                          {result.is_correct ? "Correct" : "Incorrect"}
+                        </div>
+                        <div className="text-xs text-gray-500">Time: {result.time_taken}s</div>
+                      </div>
+                      <h3 className="font-medium text-gray-800 mb-4">{result.question_text}</h3>
+
+                      <div className="space-y-2 mb-4">
+                        {result.options.map((option) => (
+                          <div
+                            key={option.option_id}
+                            className={`p-3 border rounded-lg flex items-center ${
+                              option.option_id === result.correct_answer && option.option_id === result.user_answer
+                                ? "border-green-500 bg-green-100"
+                                : option.option_id === result.correct_answer
+                                ? "border-green-500 bg-green-100"
+                                : option.option_id === result.user_answer
+                                ? "border-red-500 bg-red-100"
+                                : "border-gray-200 bg-white"
+                            }`}
+                          >
+                            <div className="mr-3">
+                              {option.option_id === result.correct_answer && option.option_id === result.user_answer ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : option.option_id === result.correct_answer ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : option.option_id === result.user_answer ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              ) : (
+                                <div className="h-5 w-5"></div>
+                              )}
+                            </div>
+                            <div className="text-gray-800">
+                              <span className="font-medium mr-2">{option.option_id}.</span>
+                              {option.option_text}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {!result.is_correct && (
+                        <div className="mt-3 text-sm">
+                          <span className="font-medium text-gray-700">Correct answer: </span>
+                          <span className="text-gray-800">{result.correct_option_text}</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "analysis" && evaluationResult.analysis && (
+            <div className="text-left">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2 text-gray-800">Overall Analysis</h3>
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <p className="text-gray-700 whitespace-pre-line">{evaluationResult.analysis.summary_report}</p>
+                </div>
               </div>
-            )}
-          </motion.div>
-        )
+
+              <h3 className="text-lg font-semibold mb-2 text-gray-800">Section-by-Section Analysis</h3>
+              <div className="space-y-4">
+                {Object.entries(evaluationResult.analysis.section_analyses).map(([sectionId, analysis]) => (
+                  <div key={sectionId} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h4 className="font-medium mb-2 text-gray-700">{sectionNames[sectionId] || sectionId}</h4>
+                    <p className="text-gray-700 whitespace-pre-line">{analysis}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </motion.div>
       )}
 
       <motion.div
@@ -409,9 +546,6 @@ isSubmitting ? (
         </Link>
       </motion.div>
     </motion.div>
-      )}
-    </>
-
   );
 };
 
