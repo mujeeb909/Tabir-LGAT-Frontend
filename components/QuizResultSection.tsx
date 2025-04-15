@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
+import MathRenderer from "@/components/MathRenderer";
 
 interface SectionResult {
   total_questions: number;
@@ -57,6 +58,15 @@ interface QuizResultSectionProps {
   submitError: string;
   isSubmitting: boolean;
 }
+
+const hasMathExpression = (text: string): boolean => {
+  const mathPatterns = [
+    /\\x/, /\\y/, /\\cdot/, /\\ldot/, /\^{.*?}/, /\^{.*?}/, /\\frac{.*?}{.*?}/, /\\sqrt/,
+    /\(x\^/, /\(y\^/, /\\left/, /\\right/, /\\Delta/, /\\alpha/, /\\beta/, /\\pi/
+  ];
+
+  return mathPatterns.some(pattern => pattern.test(text));
+};
 
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -438,7 +448,13 @@ const QuizResultSection: React.FC<QuizResultSectionProps> = ({
                         </div>
                         <div className="text-xs text-gray-500">Time: {result.time_taken}s</div>
                       </div>
-                      <h3 className="font-medium text-gray-800 mb-4">{result.question_text}</h3>
+                      <h3 className="font-medium text-gray-800 mb-4">
+  {hasMathExpression(result.question_text) ? (
+    <MathRenderer content={result.question_text} />
+  ) : (
+    result.question_text
+  )}
+</h3>
 
                       <div className="space-y-2 mb-4">
                         {result.options.map((option) => (
@@ -472,18 +488,28 @@ const QuizResultSection: React.FC<QuizResultSectionProps> = ({
                               )}
                             </div>
                             <div className="text-gray-800">
-                              <span className="font-medium mr-2">{option.option_id}.</span>
-                              {option.option_text}
-                            </div>
+  <span className="font-medium mr-2">{option.option_id}.</span>
+  {hasMathExpression(option.option_text) ? (
+    <MathRenderer content={option.option_text} />
+  ) : (
+    option.option_text
+  )}
+</div>
                           </div>
                         ))}
                       </div>
 
                       {!result.is_correct && (
                         <div className="mt-3 text-sm">
-                          <span className="font-medium text-gray-700">Correct answer: </span>
-                          <span className="text-gray-800">{result.correct_option_text}</span>
-                        </div>
+                        <span className="font-medium text-gray-700">Correct answer: </span>
+                        <span className="text-gray-800">
+                          {hasMathExpression(result.correct_option_text) ? (
+                            <MathRenderer content={result.correct_option_text} />
+                          ) : (
+                            result.correct_option_text
+                          )}
+                        </span>
+                      </div>
                       )}
                     </div>
                   ))}

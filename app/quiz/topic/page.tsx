@@ -106,7 +106,7 @@ const QuizTestPage = () => {
   const [error, setError] = useState("");
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
-  const [timeRemaining, setTimeRemaining] = useState(900);
+  const [timeRemaining, setTimeRemaining] = useState(7200);
   const [slideDirection, setSlideDirection] = useState("next");
   const [showResults, setShowResults] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);

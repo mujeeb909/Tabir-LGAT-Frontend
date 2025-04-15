@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import MathRenderer from "@/components/MathRenderer";
 
 const swipeVariants = {
   nextEnter: { x: 100, opacity: 0 },
@@ -35,6 +36,16 @@ interface QuizQuestionSectionProps {
   handleSubmit: () => void;
   handleExplanationChange?: (data: { questionIndex: number; explanation: string }) => void;
 }
+
+// Helper function to check if content has math expressions
+const hasMathExpression = (text: string): boolean => {
+  const mathPatterns = [
+    /\\x/, /\\y/, /\\cdot/, /\\ldot/, /\^{.*?}/, /\^{.*?}/, /\\frac{.*?}{.*?}/, /\\sqrt/,
+    /\(x\^/, /\(y\^/, /\\left/, /\\right/, /\\Delta/, /\\alpha/, /\\beta/, /\\pi/
+  ];
+
+  return mathPatterns.some(pattern => pattern.test(text));
+};
 
 const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
   questions,
@@ -98,6 +109,9 @@ const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
   // Check if it's an essay question (no options)
   const isEssayQuestion = question?.type === 'essay';
 
+  // Check if the question or any option has math expressions
+  const questionHasMath = question?.text ? hasMathExpression(question.text) : false;
+
   return (
     <>
       <AnimatePresence mode="wait" initial={false}>
@@ -118,35 +132,53 @@ const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
             </span>
           </div>
 
-          <h2 className="text-gray-800 text-xl font-semibold mb-8">
-            {question?.text}
-          </h2>
+          {/* Use MathRenderer for questions with math expressions */}
+          {questionHasMath ? (
+            <MathRenderer
+              content={question?.text || ""}
+              className="text-gray-800 text-xl font-semibold mb-8"
+            />
+          ) : (
+            <h2 className="text-gray-800 text-xl font-semibold mb-8">
+              {question?.text}
+            </h2>
+          )}
 
           {/* Display options for multiple choice questions */}
           {!isEssayQuestion && question?.options && (
             <div className="grid grid-cols-1 gap-4 mb-8">
-              {question.options.map((option) => (
-                <motion.button
-                  key={option.id}
-                  onClick={() => handleAnswerSelect(option.id)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`flex items-center p-4 text-left text-base font-medium rounded-lg transition-all ${
-                    answers[currentQuestion] === option.id
-                      ? "bg-primary text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  <span className={`flex h-8 justify-center rounded-full text-sm w-8 items-center mr-3 ${
-                    answers[currentQuestion] === option.id
-                      ? "bg-white bg-opacity-20 text-white"
-                      : "bg-white text-gray-700"
-                  }`}>
-                    {option.id}
-                  </span>
-                  {option.text}
-                </motion.button>
-              ))}
+              {question.options.map((option) => {
+                const optionHasMath = hasMathExpression(option.text);
+
+                return (
+                  <motion.button
+                    key={option.id}
+                    onClick={() => handleAnswerSelect(option.id)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`flex items-center p-4 text-left text-base font-medium rounded-lg transition-all ${
+                      answers[currentQuestion] === option.id
+                        ? "bg-primary text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    <span className={`flex h-8 justify-center rounded-full text-sm w-8 items-center mr-3 ${
+                      answers[currentQuestion] === option.id
+                        ? "bg-white bg-opacity-20 text-white"
+                        : "bg-white text-gray-700"
+                    }`}>
+                      {option.id}
+                    </span>
+
+                    {/* Use MathRenderer for options with math expressions */}
+                    {optionHasMath ? (
+                      <MathRenderer content={option.text} />
+                    ) : (
+                      <span>{option.text}</span>
+                    )}
+                  </motion.button>
+                );
+              })}
             </div>
           )}
 
