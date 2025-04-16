@@ -18,6 +18,10 @@ const nextConfig = {
     // ⚠️ Also ignore ESLint errors during builds
     ignoreDuringBuilds: true,
   },
+  output: 'export',
+  images: {
+    unoptimized: true,
+  }
 };
 
 module.exports = nextConfig;
