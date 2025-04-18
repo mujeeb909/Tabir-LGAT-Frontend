@@ -69,8 +69,11 @@ const hasMathExpression = (text: string): boolean => {
 };
 
 const formatTime = (seconds: number) => {
+  seconds = Math.max(0, seconds);
+
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
+
   return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
 };
 

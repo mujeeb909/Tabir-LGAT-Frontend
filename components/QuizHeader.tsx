@@ -8,9 +8,15 @@ interface QuizHeaderProps {
 }
 
 const formatTime = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+
+  if (hours > 0) {
+    return `${hours}:${mins < 10 ? "0" : ""}${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  } else {
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  }
 };
 
 const QuizHeader: React.FC<QuizHeaderProps> = ({

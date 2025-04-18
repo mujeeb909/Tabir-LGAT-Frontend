@@ -258,7 +258,7 @@ const submitResultsToServer = async (timeTaken) => {
       sections: []
     };
 
-    // Group questions by section to recreate the original structure
+
     const sectionMap = {};
 
     // First, group questions by section
@@ -348,9 +348,9 @@ const submitResultsToServer = async (timeTaken) => {
     setIsCalculating(true);
 
     setTimeout(() => {
-      const timeTaken = 900 - timeRemaining; // Calculate time taken in seconds
+      const timeTaken = 7200 - timeRemaining;
 
-      // Submit answers to server for evaluation
+
       submitResultsToServer(timeTaken);
 
       setIsCalculating(false);
@@ -414,7 +414,7 @@ const submitResultsToServer = async (timeTaken) => {
   <QuizResultSection
     topic={quizData?.quizName || topic}
     evaluationResult={evaluationResult}
-    timeTaken={900 - timeRemaining}
+    timeTaken={7200 - timeRemaining}
     submitError={submitError}
     isSubmitting={isSubmitting} // Pass the loading state
   />

@@ -4,6 +4,7 @@ import Providers from "./providers";
 import "./globals.css";
 import Image from "next/image";
 import Link from "next/link";
+import Script from 'next/script';
 
 const poppins = Poppins({
     weight: ["300", "400", "500", "600", "700"],
@@ -26,6 +27,33 @@ export default function RootLayout({
         <head>
             <link rel="icon" href="/favicon.ico" sizes="any" />
             <link rel="icon" type="image/png" href="/favicon-32x32.png" />
+            <Script id="mathjax-config" strategy="beforeInteractive">
+          {`
+            window.MathJax = {
+              tex: {
+                inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+                displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
+                processEscapes: true,
+                packages: {'[+]': ['ams']}
+              },
+              options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+              },
+              startup: {
+                ready: () => {
+                  MathJax.startup.defaultReady();
+                }
+              }
+            };
+          `}
+        </Script>
+        <Script
+          id="mathjax-script"
+          src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+          strategy="afterInteractive"
+        />
         </head>
         <body
             className={` ${poppins.variable} antialiased bg-white min-h-screen flex flex-col items-center`}

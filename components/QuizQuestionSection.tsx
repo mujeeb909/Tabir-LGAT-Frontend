@@ -37,11 +37,17 @@ interface QuizQuestionSectionProps {
   handleExplanationChange?: (data: { questionIndex: number; explanation: string }) => void;
 }
 
-// Helper function to check if content has math expressions
+// Enhanced helper function to check if content has math expressions
 const hasMathExpression = (text: string): boolean => {
+  if (!text) return false;
+
   const mathPatterns = [
-    /\\x/, /\\y/, /\\cdot/, /\\ldot/, /\^{.*?}/, /\^{.*?}/, /\\frac{.*?}{.*?}/, /\\sqrt/,
-    /\(x\^/, /\(y\^/, /\\left/, /\\right/, /\\Delta/, /\\alpha/, /\\beta/, /\\pi/
+    /\\\(/, /\\\)/, /\\\[/, /\\\]/,
+    /\\x/, /\\y/, /\\cdot/, /\\ldot/,
+    /\^{.*?}/, /\^/, /\\frac{.*?}{.*?}/, /\\sqrt/,
+    /\(x\^/, /\(y\^/, /\\left/, /\\right/,
+    /\\Delta/, /\\alpha/, /\\beta/, /\\pi/,
+    /\\leq/, /\\geq/, /\\neq/, /\\approx/
   ];
 
   return mathPatterns.some(pattern => pattern.test(text));
@@ -64,6 +70,17 @@ const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
   );
 
   const [wordCount, setWordCount] = useState(0);
+
+  // Add preloading of MathJax to ensure it's available - moved inside the component
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !(window as any).MathJax) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.async = true;
+      script.id = 'MathJax-script';
+      document.head.appendChild(script);
+    }
+  }, []);
 
   // Update the local explanation when the current question changes
   useEffect(() => {
@@ -109,8 +126,8 @@ const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
   // Check if it's an essay question (no options)
   const isEssayQuestion = question?.type === 'essay';
 
-  // Check if the question or any option has math expressions
-  const questionHasMath = question?.text ? hasMathExpression(question.text) : false;
+  // Always use MathRenderer for questions and options to ensure consistent rendering
+  // This simplifies the logic and ensures all math is properly rendered
 
   return (
     <>
@@ -132,53 +149,43 @@ const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
             </span>
           </div>
 
-          {/* Use MathRenderer for questions with math expressions */}
-          {questionHasMath ? (
+          {/* Always use MathRenderer for question text for consistent rendering */}
+          <div className="mb-8">
             <MathRenderer
               content={question?.text || ""}
-              className="text-gray-800 text-xl font-semibold mb-8"
+              className="text-gray-800 text-xl font-semibold"
             />
-          ) : (
-            <h2 className="text-gray-800 text-xl font-semibold mb-8">
-              {question?.text}
-            </h2>
-          )}
+          </div>
 
           {/* Display options for multiple choice questions */}
           {!isEssayQuestion && question?.options && (
             <div className="grid grid-cols-1 gap-4 mb-8">
-              {question.options.map((option) => {
-                const optionHasMath = hasMathExpression(option.text);
+              {question.options.map((option) => (
+                <motion.button
+                  key={option.id}
+                  onClick={() => handleAnswerSelect(option.id)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`flex items-center p-4 text-left text-base font-medium rounded-lg transition-all ${
+                    answers[currentQuestion] === option.id
+                      ? "bg-primary text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  <span className={`flex h-8 justify-center rounded-full text-sm w-8 items-center mr-3 ${
+                    answers[currentQuestion] === option.id
+                      ? "bg-white bg-opacity-20 text-white"
+                      : "bg-white text-gray-700"
+                  }`}>
+                    {option.id}
+                  </span>
 
-                return (
-                  <motion.button
-                    key={option.id}
-                    onClick={() => handleAnswerSelect(option.id)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={`flex items-center p-4 text-left text-base font-medium rounded-lg transition-all ${
-                      answers[currentQuestion] === option.id
-                        ? "bg-primary text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    <span className={`flex h-8 justify-center rounded-full text-sm w-8 items-center mr-3 ${
-                      answers[currentQuestion] === option.id
-                        ? "bg-white bg-opacity-20 text-white"
-                        : "bg-white text-gray-700"
-                    }`}>
-                      {option.id}
-                    </span>
-
-                    {/* Use MathRenderer for options with math expressions */}
-                    {optionHasMath ? (
-                      <MathRenderer content={option.text} />
-                    ) : (
-                      <span>{option.text}</span>
-                    )}
-                  </motion.button>
-                );
-              })}
+                  {/* Always use MathRenderer for options for consistent rendering */}
+                  <div className="flex-1">
+                    <MathRenderer content={option.text} />
+                  </div>
+                </motion.button>
+              ))}
             </div>
           )}
 
