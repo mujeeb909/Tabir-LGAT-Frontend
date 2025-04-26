@@ -452,11 +452,9 @@ const QuizResultSection: React.FC<QuizResultSectionProps> = ({
                         <div className="text-xs text-gray-500">Time: {result.time_taken}s</div>
                       </div>
                       <h3 className="font-medium text-gray-800 mb-4">
-  {hasMathExpression(result.question_text) ? (
+
     <MathRenderer content={result.question_text} />
-  ) : (
-    result.question_text
-  )}
+
 </h3>
 
                       <div className="space-y-2 mb-4">
@@ -490,13 +488,11 @@ const QuizResultSection: React.FC<QuizResultSectionProps> = ({
                                 <div className="h-5 w-5"></div>
                               )}
                             </div>
-                            <div className="text-gray-800">
-  <span className="font-medium mr-2">{option.option_id}.</span>
-  {hasMathExpression(option.option_text) ? (
+                            <div className="text-gray-800 flex">
+  <span className="font-medium mr-2 flex-row">{option.option_id}.</span>
+
     <MathRenderer content={option.option_text} />
-  ) : (
-    option.option_text
-  )}
+
 </div>
                           </div>
                         ))}
