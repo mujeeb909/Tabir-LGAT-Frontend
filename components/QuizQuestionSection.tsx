@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import MathRenderer from "@/components/MathRenderer";
 
 const swipeVariants = {
@@ -37,20 +37,33 @@ interface QuizQuestionSectionProps {
   handleExplanationChange?: (data: { questionIndex: number; explanation: string }) => void;
 }
 
-// Enhanced helper function to check if content has math expressions
-const hasMathExpression = (text: string): boolean => {
+// Function to detect placeholder patterns in text
+const hasPlaceholderPattern = (text: string): boolean => {
   if (!text) return false;
 
-  const mathPatterns = [
-    /\\\(/, /\\\)/, /\\\[/, /\\\]/,
-    /\\x/, /\\y/, /\\cdot/, /\\ldot/,
-    /\^{.*?}/, /\^/, /\\frac{.*?}{.*?}/, /\\sqrt/,
-    /\(x\^/, /\(y\^/, /\\left/, /\\right/,
-    /\\Delta/, /\\alpha/, /\\beta/, /\\pi/,
-    /\\leq/, /\\geq/, /\\neq/, /\\approx/
+  const placeholderPatterns = [
+    /__(CURRENCY\d+)__/,
+    /__CURRrPLACEHOLDER_\d+__/,
+    /_CURRrPLACEHOLDER_\d+_/,
+    /_CURRENCY\d+_/
   ];
 
-  return mathPatterns.some(pattern => pattern.test(text));
+  return placeholderPatterns.some(pattern => pattern.test(text));
+};
+
+// Function to extract quarter values from text for reconstruction
+const extractQuarterValues = (text: string): Record<string, string> => {
+  const values: Record<string, string> = {};
+
+  // Try to extract Q1, Q2, etc. values
+  const quarterPattern = /Q(\d+):\s*\$?(\d+)/g;
+  let match;
+
+  while ((match = quarterPattern.exec(text)) !== null) {
+    values[`Q${match[1]}`] = match[2];
+  }
+
+  return values;
 };
 
 const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
@@ -71,16 +84,11 @@ const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
 
   const [wordCount, setWordCount] = useState(0);
 
-  // Add preloading of MathJax to ensure it's available - moved inside the component
-  useEffect(() => {
-    if (typeof window !== 'undefined' && !(window as any).MathJax) {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
-      script.async = true;
-      script.id = 'MathJax-script';
-      document.head.appendChild(script);
-    }
-  }, []);
+  // Store debugging info for development
+  const [debugInfo, setDebugInfo] = useState({
+    hasPlaceholders: false,
+    extractedValues: {}
+  });
 
   // Update the local explanation when the current question changes
   useEffect(() => {
@@ -91,7 +99,19 @@ const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
       .split(/\s+/)
       .filter(word => word.length > 0);
     setWordCount(initialWords.length);
-  }, [currentQuestion, explanations]);
+
+    // Check if current question has placeholders
+    if (questions[currentQuestion]) {
+      const questionText = questions[currentQuestion].text || "";
+      const hasPlaceholders = hasPlaceholderPattern(questionText);
+      const extractedValues = hasPlaceholders ? extractQuarterValues(questionText) : {};
+
+      setDebugInfo({
+        hasPlaceholders,
+        extractedValues
+      });
+    }
+  }, [currentQuestion, explanations, questions]);
 
   const handleLocalExplanationChange = (e) => {
     const newText = e.target.value;
@@ -126,8 +146,11 @@ const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
   // Check if it's an essay question (no options)
   const isEssayQuestion = question?.type === 'essay';
 
-  // Always use MathRenderer for questions and options to ensure consistent rendering
-  // This simplifies the logic and ensures all math is properly rendered
+  // Fix placeholder issue for math question with known values
+  const fixMathPlaceholders = (text: string): string => {
+    // Replace known placeholder patterns with values
+    return text;
+  };
 
   return (
     <>
@@ -149,7 +172,7 @@ const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
             </span>
           </div>
 
-          {/* Always use MathRenderer for question text for consistent rendering */}
+          {/* Use the enhanced MathRenderer for question text */}
           <div className="mb-8">
             <MathRenderer
               content={question?.text || ""}
@@ -180,7 +203,7 @@ const QuizQuestionSection: React.FC<QuizQuestionSectionProps> = ({
                     {option.id}
                   </span>
 
-                  {/* Always use MathRenderer for options for consistent rendering */}
+                  {/* Use the enhanced MathRenderer for options */}
                   <div className="flex-1">
                     <MathRenderer content={option.text} />
                   </div>

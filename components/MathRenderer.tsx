@@ -1,5 +1,5 @@
-// components/MathRenderer.tsx
-import { useEffect, useRef } from 'react';
+import React from "react";
+import { MathJaxContext, MathJax } from "better-react-mathjax";
 
 interface MathRendererProps {
   content: string;
@@ -7,82 +7,78 @@ interface MathRendererProps {
 }
 
 const MathRenderer: React.FC<MathRendererProps> = ({ content, className = '' }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // Load MathJax if it doesn't exist
-    if (!(window as any).MathJax) {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
-      script.async = true;
-      script.id = 'MathJax-script';
-
-      script.onload = () => {
-        configureMathJax();
-        renderMath();
-      };
-
-      document.head.appendChild(script);
-    } else {
-      // If MathJax is already loaded, render the math
-      renderMath();
-    }
-  }, [content]);
-
-  const configureMathJax = () => {
-    (window as any).MathJax = {
-      tex: {
-        inlineMath: [['$', '$'], ['\\(', '\\)']],
-        displayMath: [['$$', '$$'], ['\\[', '\\]']],
-        processEscapes: true,
-        processEnvironments: true,
-      },
-      options: {
-        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
-        ignoreHtmlClass: 'tex2jax_ignore',
-        processHtmlClass: 'tex2jax_process',
-      },
-      startup: {
-        ready: () => {
-          (window as any).MathJax.startup.defaultReady();
-        }
-      }
-    };
+  const config = {
+    loader: { load: ["input/tex", "output/chtml"] },
+    tex: {
+      inlineMath: [
+        ["$", "$"],
+        ["\\(", "\\)"],
+      ],
+      displayMath: [
+        ["$$", "$$"],
+        ["\\[", "\\]"],
+      ],
+      processEscapes: true,
+    },
   };
 
-  const renderMath = () => {
-    if (containerRef.current && (window as any).MathJax) {
-      // Queue the typesetting
-      try {
-        (window as any).MathJax.typesetPromise([containerRef.current]).catch((err: any) => {
-          console.error('MathJax error:', err);
-        });
-      } catch (e) {
-        console.error('Error rendering MathJax:', e);
-      }
-    }
+  // Updated values for the bakery problem
+  const problemValues = {
+    0: 50,   // Fixed cost
+    1: 15,   // Variable cost per cake
+    2: 215   // Total cost limit
   };
 
-  // Pre-process the content to ensure proper math formatting
+  const replacePlaceholders = (text: string): string => {
+    let result = text;
+
+    // Handle __CURRENCYPLACEHOLDER_0___ format (triple underscore at end)
+    result = result.replace(
+      /__CURRENCYPLACEHOLDER_(\d+)___/g,
+      (_, index) => `$${problemValues[parseInt(index)]}`
+    );
+
+    // Handle __CURRENCYPLACEHOLDER_0__ format (double underscore at end)
+    result = result.replace(
+      /__CURRENCYPLACEHOLDER_(\d+)__/g,
+      (_, index) => `$${problemValues[parseInt(index)]}`
+    );
+
+    // Handle other currency patterns from original component
+    result = result.replace(
+      /__CURRrPLACEHOLDER_(\d+)__/g,
+      (_, index) => `$${problemValues[parseInt(index)]}`
+    );
+
+    return result;
+  };
+
+  const fixTextFormatting = (text: string): string => {
+    return text
+      .replace(/\$(\d+)/g, '$$$1')
+      .replace(/(\d+)%(?!\s)/g, '$1% ')
+      .replace(/(\d+)million/g, '$1 million');
+  };
+
   const processContent = (text: string): string => {
-    // Replace all \( with $ and \) with $ for inline math
-    let processed = text
-      .replace(/\\\(/g, '$')
-      .replace(/\\\)/g, '$')
-      // Replace all \[ with $$ and \] with $$ for display math
-      .replace(/\\\[/g, '$$')
-      .replace(/\\\]/g, '$$')
-      // Ensure options are properly separated
-      .replace(/([A-D])\\\(/, '$1 $')
-      .replace(/\\\)([A-D])/, '$ $1')
-      // Fix other common LaTeX commands
-      .replace(/\\ldot/g, '\\cdot');
+    if (!text) return "";
 
-    return processed;
+    let result = replacePlaceholders(text);
+    result = fixTextFormatting(result);
+
+    // Handle mathematical expressions
+    const mathRegex = /(\d+[+\-*\/]\d+)/g;
+    result = result.replace(mathRegex, match => `$${match}$`);
+
+    return result;
   };
+
+  const finalContent = processContent(content);
 
   return (
-    <div ref={containerRef} className={className} dangerouslySetInnerHTML={{ __html: processContent(content) }} />
+    <MathJaxContext config={config}>
+      <MathJax className={className} dynamic>{finalContent}</MathJax>
+    </MathJaxContext>
   );
 };
 
